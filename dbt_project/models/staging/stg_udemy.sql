@@ -1,5 +1,5 @@
 with source as (
-    select * from {{ source('raw_data', 'udemy_courses2') }}
+    select * from {{ ref('udemy_final_data') }}
 ),
 transformed as (
     select

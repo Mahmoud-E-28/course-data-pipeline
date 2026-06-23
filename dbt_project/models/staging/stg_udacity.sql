@@ -1,5 +1,5 @@
 with source as (
-    select * from {{ source('raw_data', 'udacity_final2') }}
+    select * from {{ ref('udacity_final_data') }}
 ),
 
 transformed as (

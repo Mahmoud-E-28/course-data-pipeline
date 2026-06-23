@@ -4,6 +4,6 @@ sources:
   - name: raw_data
     schema: main
     tables:
-      - name: coursera_courses2
-      - name: udacity_final2
-      - name: udemy_courses2
+      - name: coursera_final_data
+      - name: udacity_final_data
+      - name: udemy_final_data
