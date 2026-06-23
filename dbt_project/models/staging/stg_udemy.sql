@@ -3,13 +3,20 @@ with source as (
 ),
 transformed as (
     select
-        try_cast(course_id as integer) as course_id,
-        cast("Course_Title" as varchar) as title,
-        cast("Language" as varchar) as language,
-        nullif(cast(replace(cast("Price" as varchar), 'E£', '') as float), 0) as price,
+        cast(course_id as varchar) as course_id,
+        "Course_Title" as title,
+        "Course_URL" as course_url,
+        'Udemy' as platform,
+        "Language" as language,
+        "Description" as description,
+        "Skills" as skills,
+        "Level" as level,
+        "Programming_Instructor" as instructor,
+        "Domain_Name" as domain_name,
+        cast("Last_Update" as date) as last_updated,
+        "Duration" as duration,
         cast("No_of_Reviews" as integer) as review_count,
-        cast("No_of_Students" as integer) as student_count,
-        cast("Last_Update" as date) as last_updated
+        cast("No_of_Students" as integer) as enrolled_students
     from source
     where try_cast(course_id as integer) is not null
 )
