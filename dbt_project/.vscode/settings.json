@@ -1,0 +1,11 @@
+{
+    "duckdb.databases": [
+        {
+            "alias": "dbt_local",
+            "type": "file",
+            "path": "i:\\dbt_project\\dbt_project\\dbt_local.duckdb",
+            "attached": true
+        }
+    ],
+    "duckdb.defaultDatabase": "dbt_local"
+}

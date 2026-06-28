@@ -1,11 +1,16 @@
 {{ config(materialized='view') }}
 
 WITH combined AS (
-    SELECT * FROM {{ ref('int_courses_combined') }}
+
+    SELECT *
+    FROM {{ ref('int_courses_combined') }}
+
 ),
 
 enriched AS (
+
     SELECT
+
         -- Identifiers & descriptive fields
         course_id,
         platform,
@@ -16,7 +21,7 @@ enriched AS (
         instructor,
         language,
         domain_name,
-        
+
         -- Level standardization
         CASE
             WHEN LOWER(TRIM(level)) IN ('beginner', 'beginner level', 'introductory') THEN 'Beginner'
@@ -25,27 +30,36 @@ enriched AS (
             WHEN LOWER(TRIM(level)) IN ('all levels', 'all', 'mixed') THEN 'All Levels'
             ELSE 'Unknown'
         END AS level,
-        
+
         -- Numeric fields
         rating,
         review_count,
         enrolled_students,
         price,
-        price_model,
+
+        -- Price model standardization
+        CASE
+            WHEN LOWER(price_model) IN ('subscription','monthly_subscription')
+                THEN 'Subscription'
+            WHEN LOWER(price_model) = 'one time'
+                THEN 'One Time'
+            ELSE 'Unknown'
+        END AS price_model,
+
         duration_hours,
         duration_raw,
-        
-        -- Price category logic
+
+        -- Price category
         CASE
             WHEN price IS NULL THEN 'Unknown'
             WHEN price = 0 THEN 'Free'
-            WHEN price < 50 THEN 'Cheap'
-            WHEN price < 200 THEN 'Medium'
-            WHEN price < 500 THEN 'Expensive'
+            WHEN price < 500 THEN 'Cheap'
+            WHEN price < 2000 THEN 'Medium'
+            WHEN price < 5000 THEN 'Expensive'
             ELSE 'Premium'
         END AS price_category,
-        
-        -- Duration category logic
+
+        -- Duration category
         CASE
             WHEN duration_hours IS NULL THEN 'Unknown'
             WHEN duration_hours < 5 THEN 'Short'
@@ -53,33 +67,94 @@ enriched AS (
             WHEN duration_hours < 50 THEN 'Long'
             ELSE 'Extensive'
         END AS duration_category,
-        
-        -- Popularity score (combines rating and normalized enrolled students)
+
+        -- Popularity score
         CASE
             WHEN rating IS NULL OR enrolled_students IS NULL THEN NULL
             ELSE ROUND(rating * LN(enrolled_students + 1), 2)
         END AS popularity_score,
-        
-        -- Engagement rate (reviews per enrolled student as percentage)
+
+        -- Engagement rate
         CASE
             WHEN enrolled_students IS NULL OR enrolled_students = 0 THEN NULL
             WHEN review_count IS NULL THEN 0
-            ELSE ROUND((CAST(review_count AS FLOAT) / enrolled_students) * 100, 2)
+            ELSE ROUND(
+                (CAST(review_count AS FLOAT) / enrolled_students) * 100,
+                2
+            )
         END AS engagement_rate_pct,
 
-        -- Offering type standardization
+        -- Weighted rating
         CASE
-             WHEN offering_type IS NULL THEN 'Unknown'
-             WHEN LOWER(offering_type) LIKE '%nano%' THEN 'Nanodegree'
-             WHEN LOWER(offering_type) LIKE '%special%' THEN 'Specialization'
-             WHEN LOWER(offering_type) LIKE '%professional%' THEN 'Professional Certificate'
-             ELSE 'Course'
-        END AS offering_type,
+            WHEN rating IS NULL THEN NULL
+            ELSE ROUND(
+                rating * LN(COALESCE(review_count,0) + 1),
+                2
+            )
+        END AS weighted_rating,
 
-        -- Timestamps
+        -- Cost per learning hour
+        CASE
+            WHEN price IS NULL
+                 OR duration_hours IS NULL
+                 OR duration_hours = 0
+            THEN NULL
+            ELSE ROUND(price / duration_hours, 2)
+        END AS cost_per_hour,
+
+        -- Offering type
+        COALESCE(offering_type,'Unknown') AS offering_type,
+
+        -- Estimated total cost
+        CASE
+            WHEN price IS NULL
+                 OR duration_hours IS NULL
+            THEN NULL
+
+            WHEN LOWER(price_model) = 'one time'
+            THEN price
+
+            WHEN LOWER(price_model) IN
+                ('subscription','monthly_subscription')
+            THEN ROUND(
+                price * CEIL(duration_hours / 40.0),
+                2
+            )
+
+            ELSE price
+        END AS estimated_total_cost,
+
         last_updated
-        
+
     FROM combined
+
+),
+
+final AS (
+
+    SELECT
+
+        *,
+
+        -- Value score
+        CASE
+            WHEN estimated_total_cost IS NULL
+                 OR estimated_total_cost = 0
+                 OR rating IS NULL
+                 OR enrolled_students IS NULL
+            THEN NULL
+
+            ELSE ROUND(
+                (rating * LN(enrolled_students + 1))
+                / estimated_total_cost,
+                2
+            )
+
+        END AS value_score
+
+    FROM enriched
+
 )
 
-SELECT * FROM enriched
+SELECT *
+FROM final

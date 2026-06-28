@@ -1,11 +1,15 @@
 {{ config(materialized='table') }}
 
-with source_data as (
-    select * from {{ ref('int_courses_standardized') }}),
+WITH source_data AS (
 
-final as (
+    SELECT *
+    FROM {{ ref('int_courses_standardized') }}
 
-    select
+),
+
+final AS (
+
+    SELECT
 
         dof.offering_sk,
         dp.platform_id,
@@ -13,44 +17,54 @@ final as (
         dl.level_id,
         dlang.language_id,
 
-        coalesce(di.instructor_id,-1) as instructor_id,
-        coalesce(dot.offering_type_id,-1) as offering_type_id,
-        coalesce(dt.date_id,-1) as date_id,
+        COALESCE(di.instructor_id,-1) AS instructor_id,
+        COALESCE(dot.offering_type_id,-1) AS offering_type_id,
+        COALESCE(dt.date_id,-1) AS date_id,
 
         s.price,
         s.rating,
         s.review_count,
         s.enrolled_students,
         s.duration_hours,
+
         s.popularity_score,
-        s.engagement_rate_pct
+        s.engagement_rate_pct,
 
-    from source_data s
+        s.weighted_rating,
+        s.cost_per_hour,
+        s.estimated_total_cost,
+        s.value_score
 
-    left join {{ ref('dim_platform') }} dp
-        on s.platform = dp.platform_name
+    FROM source_data s
 
-    left join {{ ref('dim_domain') }} dd
-        on s.domain_name = dd.domain_name
+    LEFT JOIN {{ ref('dim_platform') }} dp
+        ON s.platform = dp.platform_name
 
-    left join {{ ref('dim_level') }} dl
-        on s.level = dl.level_name
+    LEFT JOIN {{ ref('dim_domain') }} dd
+        ON s.domain_name = dd.domain_name
 
-    left join {{ ref('dim_language') }} dlang
-        on s.language = dlang.language_name
+    LEFT JOIN {{ ref('dim_level') }} dl
+        ON s.level = dl.level_name
 
-    left join {{ ref('dim_instructor') }} di
-        on coalesce(s.instructor,'Unknown Instructor')
+    LEFT JOIN {{ ref('dim_language') }} dlang
+        ON s.language = dlang.language_name
+
+    LEFT JOIN {{ ref('dim_instructor') }} di
+        ON COALESCE(s.instructor,'Unknown Instructor')
         = di.instructor_name
 
-    left join {{ ref('dim_offering_type') }} dot
-        on coalesce(s.offering_type,'Unknown')
+    LEFT JOIN {{ ref('dim_offering_type') }} dot
+        ON COALESCE(s.offering_type,'Unknown')
         = dot.offering_type
-    left join {{ ref('dim_date') }} dt
-        on cast(strftime(s.last_updated,'%Y%m%d') as integer) = dt.date_id
 
-    left join {{ ref('dim_offering') }} dof
-        on s.course_id = dof.offering_id
-        and dof.is_current = true)
+    LEFT JOIN {{ ref('dim_date') }} dt
+        ON CAST(strftime(s.last_updated,'%Y%m%d') AS INTEGER) = dt.date_id
 
-select * from final
+    LEFT JOIN {{ ref('dim_offering') }} dof
+        ON s.course_id = dof.offering_id
+        AND dof.is_current = TRUE
+
+)
+
+SELECT *
+FROM final
