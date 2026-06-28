@@ -2,9 +2,7 @@ version: 2
 
 sources:
   - name: raw_data
-    # نستخدم المتغيرات هنا للتبديل بين البيئات
-    database: "{{ var('fabric_database', 'dev_database') }}"
-    schema: "{{ var('fabric_schema', 'main') }}"
+    schema: main
     tables:
       - name: coursera_final_data
       - name: udacity_final_data
